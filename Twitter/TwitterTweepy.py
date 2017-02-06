@@ -1,5 +1,9 @@
-import logging
+import itertools
+from datetime import datetime, timedelta
+
+import pytz as pytz
 import tweepy
+import time
 from models import TwitterUser, TwitterList, TwitterRelationship
 from models import Tweet
 
@@ -14,7 +18,6 @@ class TwitterTweepy:
         # user app level authentication default, except for streaming (gives 401 error)
         self.authentication = authentication
         self.api = self.authenticate()
-        self.logger = logging.getLogger('twitter')
 
     def authenticate(self):
         """
@@ -36,11 +39,11 @@ class TwitterTweepy:
         """
         try:
             user_to_check = self.api.get_user(screen_name)
-            self.logger.debug(user_to_check.screen_name + ", " + screen_name)
+            print(user_to_check.screen_name + ", " + screen_name)
             if user_to_check.screen_name.lower() == screen_name.lower():
                 return True
         except tweepy.TweepError:
-            self.logger.debug("Tweepy: Error in user_exists")
+            print("Tweepy: Error in user_exists")
         return False
 
     def get_id_of_user(self, username):
@@ -52,7 +55,7 @@ class TwitterTweepy:
         user_for_id = self.api.get_user(username)
         return user_for_id.id_str
 
-    def profile_information_search(self, names, task_id, friends=False, followers=False, max_followers={},
+    def profile_information_search(self, names, friends=False, followers=False, max_followers={},
                                    list_memberships=False, list_subscriptions=False, relationships_checked=False):
         """ Collect the information needed to build a relationship network
             The full user objects of the friends and followers of a list of usernames is collected
@@ -68,8 +71,6 @@ class TwitterTweepy:
         # https://dev.twitter.com/rest/reference/get/users/lookup
         # get names from list, remove empty (otherwise error)
         names_list = names.split(',')
-        self.logger.debug('friends {} followers {} max followers {} listmemberships {} listsubscriptions {}'
-                          .format(friends, followers, max_followers, list_memberships, list_subscriptions))
         # list of ego_users as TwitterUser-objects
         list_ego_users = list()
         # list with all EGO-users and the friends and followers of this ego users
@@ -81,36 +82,35 @@ class TwitterTweepy:
                 try:
                     user = self.api.get_user(name)
                     twitter_user = TwitterUser(user_id=user.id, name=user.name, screen_name=user.screen_name,
-                                               friends_count=user.friends_count, followers_count=user.followers_count,
-                                               task_id=task_id, is_protected=user.protected,
+                                               friends_count=user.friends_count, followers_count=user.followers_count, is_protected=user.protected,
                                                user_description=user.description, date_created=user.created_at,
                                                url=user.url, profile_image_url=user.profile_image_url, language=user.lang,
                                                location=user.location, default_profile_image=user.default_profile_image,
                                                verified=user.verified)
                     if user.followers_count > max_followers:
                         # exclude EGO-user if too many followers
-                        self.logger.debug("{} has too many followers".format(name))
+
                         twitter_user.max_followers_exceeded = True
                         names_list.remove(name)
                     elif user.protected:
                         # remove users with a protected account
-                        self.logger.debug("Removing user {0} because of protected account".format(name))
+
                         names_list.remove(name)
                     else:
                         list_ego_users.append(twitter_user)
                         list_total_users.append(twitter_user)
                     twitter_user.save()
                 except tweepy.TweepError:
-                    self.logger.debug("Error in profile_information_search: error get username EGO-user")
+                    print("Error in profile_information_search: error get username EGO-user")
 
         # Collect friends of ego-users
         if friends:
-            self.logger.debug("Collect friends")
+            print("Collect friends")
             # iterate over all ego names the user has entered
             for name in names_list:
                 # check first if name is not empty
                 if name:
-                    self.logger.debug("Friend ids of {}".format(name))
+                    #print("Friend ids of {}".format(name))
                     # get the ego user object to save the relationsship (not full ego network)
                     ego_user = self._get_user(name, list_ego_users)
                     ids = list()
@@ -127,30 +127,30 @@ class TwitterTweepy:
                             id_set = set(ids)
                             ids_no_doubles = list(id_set)
                             for page in self._paginate(ids_no_doubles, 100):
-                                self._save_users(page, task_id, list_total_users)
+                                self._save_users(page, list_total_users)
                             # if full ego network is not collected, save the relationships between the ego user
                             # and the friends
                             if not relationships_checked:
                                 for friend_id in ids_no_doubles:
                                     relation = TwitterRelationship(from_user_id=ego_user.user_id, to_user_id=friend_id,
-                                                                   relation_used="friends", task_id=task_id)
+                                                                   relation_used="friends")
                                     relation.save()
                         except tweepy.TweepError as e:
                             # when api cannot connect, reset connection
-                            self.logger.debug("Error in getfriends: {0}".format(e))
+                            print("Error in getfriends: {0}".format(e))
                             time.sleep(50)
                             self.api = self.authenticate()
                             continue
                         break
-            self.logger.debug("End of collect friends")
+            print("End of collect friends")
 
         # Collect followers of ego users
         if followers:
-            self.logger.debug("Collect followers")
+            print("Collect followers")
             for name in names_list:
                 # check first if name is not empty
                 if name:
-                    self.logger.debug("Follower ids of {}".format(name))
+                    print("Follower ids of {}".format(name))
                     # get the ego user object to save the relationsship (not full ego network)
                     ego_user = self._get_user(name, list_ego_users)
                     ids = list()
@@ -166,25 +166,25 @@ class TwitterTweepy:
                             id_set = set(ids)
                             ids_no_doubles = list(id_set)
                             for page in self._paginate(ids_no_doubles, 100):
-                                self._save_users(page, task_id, list_total_users)
+                                self._save_users(page, list_total_users)
                             # if full ego network is not collected, save the relationships between the ego user
                             # and the friends
                             if not relationships_checked:
                                 for friend_id in ids_no_doubles:
                                     relation = TwitterRelationship(from_user_id=ego_user.user_id, to_user_id=friend_id,
-                                                                   relation_used="followers", task_id=task_id)
+                                                                   relation_used="followers")
                                     relation.save()
                         except tweepy.TweepError as e:
-                            self.logger.debug("Error in get followers: {0}".format(e))
+                            print("Error in get followers: {0}".format(e))
                             # reset connection when api cannot connect
                             time.sleep(50)
                             self.api = self.authenticate()
                             continue
                         break
-            self.logger.debug("End of collect followers")
+            print("End of collect followers")
 
         if list_memberships:
-            self.logger.debug("Collect list memberships")
+            print("Collect list memberships")
             for name in names_list:
                 if name:
                     # check first if list is not empty
@@ -197,21 +197,21 @@ class TwitterTweepy:
                                 # then the relationship can be added
                                 for twitter_list in twitter_lists:
                                     twitterlist = TwitterList(list_id=twitter_list.id, list_name=twitter_list.name,
-                                                            list_full_name=twitter_list.full_name, task_id=task_id)
+                                                            list_full_name=twitter_list.full_name)
                                     twitterlist.save()
                                     twitterlist.user_membership.add(ego_user)
                         except tweepy.TweepError as e:
-                            self.logger.debug("Error in list memberships: {}".format(e))
+                            print("Error in list memberships: {}".format(e))
                             # reset connection when api cannot connect
                             time.sleep(50)
                             self.api = self.authenticate()
                             continue
                         break
-            self.logger.debug("End of collect list memberships")
+            print("End of collect list memberships")
 
         # Collect lists the ego user subscribes to
         if list_subscriptions:
-            self.logger.debug("Collect list subscriptions")
+            print("Collect list subscriptions")
             for name in names_list:
                 if name:
                     # check first if list is not empty
@@ -222,16 +222,16 @@ class TwitterTweepy:
                                 time.sleep(1)
                                 for twitter_list in twitter_lists:
                                     twitterlist = TwitterList(list_id=twitter_list.id, list_name=twitter_list.name,
-                                                              list_full_name=twitter_list.full_name, task_id=task_id)
+                                                              list_full_name=twitter_list.full_name)
                                     twitterlist.save()
                                     twitterlist.user_subscription.add(ego_user)
                         except tweepy.TweepError as e:
                             # reset connection when api cannot connect
-                            self.logger.debug("Tweeperror in list subscriptions: {}".format(e))
+                            print("Tweeperror in list subscriptions: {}".format(e))
                             time.sleep(50)
                             self.api = self.authenticate()
                             continue
-                        self.logger.debug("End of collect list subscriptions")
+                        print("End of collect list subscriptions")
                         break
 
         # list with all ids of the EGO-users, and friends and followers (to speed up lookup later)
@@ -243,12 +243,12 @@ class TwitterTweepy:
             # The lowest number will be used to build the relationship table
             total_friends = 0
             total_followers = 0
-            self.logger.debug("Total number of users: {0}".format(len(list_total_users)))
+            print("Total number of users: {0}".format(len(list_total_users)))
             for user in list_total_users:
                 total_friends += user.friends_count
                 total_followers += user.followers_count
             if total_friends <= total_followers:
-                self.logger.debug("Build relationships based on friends")
+                print("Build relationships based on friends")
                 # build friends relationshis if the total number of friends is lower or equal to the followers count
                 for user in list_total_users:
                     # check if user is not protected, otherwise endless loop in resetting connection
@@ -267,19 +267,19 @@ class TwitterTweepy:
                                 # to avoid eternal loop, break if too many tweeperrors
                                 tweeperror_count += 1
                                 if tweeperror_count > 20:
-                                    self.logger.debug("Too much times Tweeperror in relations based on friends, break")
+                                    print("Too much times Tweeperror in relations based on friends, break")
                                     break
                                 # Sometimes an Not authorized error is thrown for some users, resulting in endless loop
                                 # Catch this error and break when it happens
                                 if "Not authorized" in str(e):
-                                    self.logger.debug("Not authorized error in relationships based on followers")
+                                    print("Not authorized error in relationships based on followers")
                                     break
                                 # Sometimes page does not exist error, catch and break
                                 if "page does not exist" in str(e):
-                                    self.logger.debug("Page does not exist error")
+                                    print("Page does not exist error")
                                     break
                                 # reset connection
-                                self.logger.debug("Tweeperror in relations friends: resetting connection {}".format(e))
+                                print("Tweeperror in relations friends: resetting connection {}".format(e))
                                 self.api = self.authenticate()
                                 time.sleep(50)
                                 continue
@@ -291,23 +291,23 @@ class TwitterTweepy:
                             if user_id in list_total_users_ids and user_id != user.user_id:
                                 try:
                                     relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
-                                                                   relation_used="friends", task_id=task_id)
+                                                                   relation_used="friends")
                                     relation.save()
                                 except OperationalError as e:
                                     # if MySql closes the connection: reopen connection and retry one time
-                                    self.logger.debug("Operationalerror: {}".format(e))
+                                    print("Operationalerror: {}".format(e))
                                     connection.close()
                                     try:
                                         relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
-                                                                       relation_used="followers", task_id=task_id)
+                                                                       relation_used="followers")
                                         relation.save()
                                     except OperationalError as e:
-                                        self.logger.debug("Two times operationalerror, stop retry");
+                                        print("Two times operationalerror, stop retry");
                     else:
-                        self.logger.debug("User is protected")
-                self.logger.debug("end of relationships friends")
+                        print("User is protected")
+                print("end of relationships friends")
             else:
-                self.logger.debug("Build relationships based on followers")
+                print("Build relationships based on followers")
                 # build followers relationships if the total numbert of followers is lower than
                 for user in list_total_users:
                     # check if user is not protected, otherwise endless loop in resetting connection
@@ -326,18 +326,18 @@ class TwitterTweepy:
                                 # to avoid eternal loop, break if too many tweeperrors
                                 tweeperror_count += 1
                                 if tweeperror_count > 20:
-                                    self.logger.debug("Too much times Tweeperror in relations based on followers, break")
+                                    print("Too much times Tweeperror in relations based on followers, break")
                                     break
                                 # Sometimes an Not authorized error is thrown for some users, resulting in endless loop
                                 # Catch this error en break when it happens
                                 if "Not authorized" in str(e):
-                                    self.logger.debug("Not authorized error in relationships based on followers: {}".format(e))
+                                    print("Not authorized error in relationships based on followers: {}".format(e))
                                     break
                                 # Sometimes page does not exist error
                                 if "page does not exist" in str(e):
-                                    self.logger.debug("Page does not exist error")
+                                    print("Page does not exist error")
                                     break
-                                self.logger.debug("Tweeperror in relations followers, resetting connection: {}".format(e))
+                                print("Tweeperror in relations followers, resetting connection: {}".format(e))
                                 self.api = self.authenticate()
                                 time.sleep(50)
                                 continue
@@ -349,28 +349,27 @@ class TwitterTweepy:
                             if user_id in list_total_users_ids and user_id != user.user_id:
                                 try:
                                     relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
-                                                                   relation_used="followers", task_id=task_id)
+                                                                   relation_used="followers")
                                     relation.save()
                                 except OperationalError as e:
                                     # if MySql closes the connection: retry one time
-                                    self.logger.debug("Operationalerror: {}".format(e))
+                                    print("Operationalerror: {}".format(e))
                                     connection.close()
                                     try:
                                         relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
-                                                                       relation_used="followers", task_id=task_id)
+                                                                       relation_used="followers")
                                         relation.save()
                                     except OperationalError as e:
-                                        self.logger.debug("Two times operationalerror, stop retry");
+                                        print("Two times operationalerror, stop retry");
                     else:
-                        self.logger.debug("User is protected")
-                self.logger.debug("end of relationships followers")
-        self.logger.debug("End of search")
+                        print("User is protected")
+                print("end of relationships followers")
+        print("End of search")
 
-    def get_tweets_searchterms_searchapi(self, query_params, task_id):
+    def get_tweets_searchterms_searchapi(self, query_params):
         """
         Get tweets of seven days in the past, based on a list of search terms (ex hashtags)
         :param query: list of search terms
-        :param task_id: the id of the current task, used to identify the data in the database
         """
         # using the Tweepy Cursor, there might be a memory leak that crashes the program
         # TODO: check memory usage
@@ -393,7 +392,7 @@ class TwitterTweepy:
         # lookup the tweets in chunks of 10 params
         for query_string in query_strings:
             '''
-            self.logger.debug("Get tweets based on query string: {0}".format(query_string))
+            print("Get tweets based on query string: {0}".format(query_string))
             until = date_today + timedelta(days=1)
             while True:
                 try:
@@ -403,16 +402,16 @@ class TwitterTweepy:
                             try:
                                 self._save_tweet(status=status, task_id=task_id)
                             except:
-                                self.logger.debug("Exception in save tweet")
+                                print("Exception in save tweet")
                                 continue
                         time.sleep(0.3)
                     break
                 except tweepy.TweepError as e:
-                    self.logger.debug("Error in searchterms {0}".format(e))
+                    print("Error in searchterms {0}".format(e))
                     time.sleep(50)
                     self.authenticate()
                     continue
-            self.logger.debug("No more tweets for {0}".format(query_string))
+            print("No more tweets for {0}".format(query_string))
             '''
             maxTweets = 10000000 # Some arbitrary large number
             tweets_per_query = 100  # this is the max the API permits
@@ -439,9 +438,9 @@ class TwitterTweepy:
                         break
                     for tweet in new_tweets:
                         try:
-                            self._save_tweet(status=tweet, task_id=task_id)
+                            self._save_tweet(status=tweet)
                         except:
-                            self.logger.debug("Exception in save tweet")
+                            print("Exception in save tweet")
                             continue
                     tweet_count += len(new_tweets)
                     print("Downloaded {0} tweets".format(tweet_count))
@@ -453,13 +452,12 @@ class TwitterTweepy:
                     time.sleep(100)
                     continue
 
-        self.logger.debug("End of search")
+        print("End of search")
 
-    def get_tweets_names_searchapi(self, query_params, task_id):
+    def get_tweets_names_searchapi(self, query_params):
         """
         Get tweets of seven days in the past, based on a list of usernames
         :param query_params: list of user names
-        :param task_id: the id of the current task, used to identify the data in the database
         """
         # add from: and to: to all usernames
         query_params = filter(None, query_params)
@@ -472,68 +470,66 @@ class TwitterTweepy:
                                                         .format(query_operator_from, param, query_operator_to, param)
                                                         for param in params))
         for query_string in query_strings:
-            self.logger.debug(query_string)
+            print(query_string)
             while True:
                 try:
                     for statuses in tweepy.Cursor(self.api.search, q=query_string,  count=100,
                                                 include_entities=True).pages():
                         for status in statuses:
                             try:
-                                self._save_tweet(status=status, task_id=task_id)
+                                self._save_tweet(status=status)
                             except:
-                                self.logger.debug("Error in save tweet names searchapi")
+                                print("Error in save tweet names searchapi")
                                 pass
                             time.sleep(0.3)
                 except tweepy.TweepError as e:
-                    self.logger.debug("Error in cursor save tweet names searchapi: {}".format(e))
+                    print("Error in cursor save tweet names searchapi: {}".format(e))
                     time.sleep(50)
                     self.authenticate()
                     continue
-            self.logger.debug("No more tweets for {0}".format(query_string))
-        self.logger.debug("End of search")
+            print("No more tweets for {0}".format(query_string))
+        print("End of search")
 
-    def get_tweets_timeline(self, names, task_id):
+    def get_tweets_timeline(self, names):
         """
         Get the tweets of a user using GET statuses/user_timeline
         :param names: a list of names to get the timeline of
-        :param task_id: the task id needed to identify the tweets in the db
         """
         user_names = filter(None, names)
         for name in user_names:
-            self.logger.debug("Timeline search of {0}".format(name))
+            print("Timeline search of {0}".format(name))
             while True:
                 try:
                     for statuses in tweepy.Cursor(self.api.user_timeline, screen_name=name).pages():
                         for status in statuses:
                             try:
-                                self._save_tweet(status=status, task_id=task_id)
+                                self._save_tweet(status=status)
                             except:
                                 pass
                             time.sleep(0.3)
                 except tweepy.TweepError as e:
-                    self.logger.debug("Error in cursor in timeline: {}".format(e))
+                    print("Error in cursor in timeline: {}".format(e))
                     time.sleep(50)
                     self.authenticate()
                     continue
-        self.logger.debug("Timeline search ended")
+        print("Timeline search ended")
 
-    def collect_random_tweets(self, task_id):
+    def collect_random_tweets(self):
         """
         Collect a number of random tweets from the search API
-        :param task_id: the task id needed to identify the tweets in the db
         """
-        self.logger.debug("Random tweet search started")
+        print("Random tweet search started")
         query = "en OR of OR is OR het OR de"
         while True:
             try:
                 for statuses in tweepy.Cursor(self.api.search, q=query, lang='nl').pages():
                     for status in statuses:
-                        self._save_tweet(status=status, task_id=task_id)
+                        self._save_tweet(status=status)
             except tweepy.TweepError as e:
-                self.logger.debug("Error in random tweets: {}".format(e))
+                print("Error in random tweets: {}".format(e))
                 self.authenticate()
                 continue
-        self.logger.debug("Random tweet search ended")
+        print("Random tweet search ended")
 
     def get_ids_from_screennames(self, screennames):
         """
@@ -553,18 +549,16 @@ class TwitterTweepy:
                 ids_list.append(user.id_str)
         return ids_list
 
-    def _save_users(self, ids, task_id, user_list):
+    def _save_users(self, ids,user_list):
         """
         converts a hundred ids of users to objects, saves them and adds them to a list
         :param ids: max 100
-        :param task_id: the id of the current task, used to identify the data in the database
         :param user_list: a list the users will be added to
         """
         users = self.api.lookup_users(user_ids=ids)
         for user in users:
             twitter_user = TwitterUser(user_id=user.id, name=user.name, screen_name=user.screen_name,
-                                       friends_count=user.friends_count, followers_count=user.followers_count,
-                                       task_id=task_id, is_protected=user.protected,
+                                       friends_count=user.friends_count, followers_count=user.followers_count, is_protected=user.protected,
                                        user_description=user.description, date_created=user.created_at,
                                        url=user.url, profile_image_url=user.profile_image_url, language=user.lang,
                                        location=user.location, default_profile_image=user.default_profile_image,
@@ -601,15 +595,14 @@ class TwitterTweepy:
         :return: TwitterUser object with the name
         """
         for user in list_users:
-            self.logger.debug("get user method {} {}".format(name, user.screen_name))
+            print("get user method {} {}".format(name, user.screen_name))
             if user.screen_name.lower() == name.lower():
                 return user
 
-    def _save_tweet(self, status, task_id):
+    def _save_tweet(self, status):
         """
         saves a tweet into the database
         :param status: the tweet
-        :param task_id: the id of the current task, used to identify the data in the database
         """
         text_of_tweet = ""
         hashtags = ""
@@ -643,7 +636,7 @@ class TwitterTweepy:
         tweet = Tweet(tweet_id=status.id_str,
                       tweeter_id=status.user.id, tweeter_name=status.user.screen_name, tweet_text=text_of_tweet,
                       tweet_date=date_tweet, is_retweet=is_retweet,
-                      mentions=mentions, hashtags=hashtags, hyperlinks=urls, task_id=task_id,
+                      mentions=mentions, hashtags=hashtags, hyperlinks=urls,
                       coordinates=status.coordinates, favorite_count=status.favorite_count, id_str=status.id_str,
                       in_reply_to_screen_name=status.in_reply_to_screen_name, retweet_count=status.retweet_count,
                       source=status.source, quoted_status_id=status_id)
@@ -655,13 +648,13 @@ class TwitterTweepy:
                 tweet.save()
                 retry = False
             except OperationalError as e:
-                self.logger.debug("Operationalerror in save tweet {0}: retry times = {1}".format(e, retry_times))
+                print("Operationalerror in save tweet {0}: retry times = {1}".format(e, retry_times))
                 retry_times += 1
                 if retry_times > 10:
-                    self.logger.debug("Too many times OperationalError, quitting save tweet")
+                    print("Too many times OperationalError, quitting save tweet")
                     retry = False
             except UnicodeEncodeError as e:
-                self.logger.debug("Unicode error in save tweet: {0}".format(e))
+                print("Unicode error in save tweet: {0}".format(e))
                 retry = False
         del tweet
 
@@ -676,9 +669,8 @@ class TweetsStreamListener(tweepy.StreamListener):
     (21/12/2015)
     """
 
-    def __init__(self, api, task_id):
+    def __init__(self, api):
         self.api = api
-        self.task_id = task_id
         self.logger = logging.getLogger('twitter')
         super(tweepy.StreamListener, self).__init__()
 
@@ -689,14 +681,14 @@ class TweetsStreamListener(tweepy.StreamListener):
         # self.channel.queue_declare(queue='twitter_toppic_feed', arguments=args)
 
     def on_status(self, status):
-        self._save_tweet(status=status, task_id=self.task_id)
+        self._save_tweet(status=status)
 
     def on_error(self, status_code):
-        self.logger.debug("Error in streaming tweets by name: " + str(status_code))
+        print("Error in streaming tweets by name: " + str(status_code))
         # return True
 
     def on_timeout(self):
-        self.logger.debug("timeout")
+        print("timeout")
         # return True
 
     def on_disconnect(self, notice):
@@ -706,7 +698,7 @@ class TweetsStreamListener(tweepy.StreamListener):
         """
         return False
 
-    def _save_tweet(self, status, task_id):
+    def _save_tweet(self, status):
         text_of_tweet = ""
         hashtags = ""
         urls = ""
@@ -724,13 +716,13 @@ class TweetsStreamListener(tweepy.StreamListener):
         # get mentions, urls & hashtags
         if hasattr(status, 'entities'):
             for hashtag in status.entities['hashtags']:
-                self.logger.debug(str(hashtag))
+                print(str(hashtag))
                 hashtags += hashtag['text'] + delimiter
             for mention in status.entities['user_mentions']:
-                self.logger.debug(str(mention))
+                print(str(mention))
                 mentions += mention['screen_name'] + delimiter
             for url in status.entities['urls']:
-                self.logger.debug(str(url))
+                print(str(url))
                 urls += url['expanded_url'] + delimiter
 
         # avoid a Runtimewarning: convert naive to non naive datetime
@@ -740,7 +732,7 @@ class TweetsStreamListener(tweepy.StreamListener):
         tweet = Tweet(tweet_id=status.id_str,
                       tweeter_id=status.user.id, tweeter_name=status.user.screen_name, tweet_text=text_of_tweet,
                       tweet_date=date_tweet, is_retweet=is_retweet,
-                      mentions=mentions, hashtags=hashtags, hyperlinks=urls, task_id=task_id,
+                      mentions=mentions, hashtags=hashtags, hyperlinks=urls,
                       coordinates=status.coordinates, favorite_count=status.favorite_count, id_str=status.id_str,
                       in_reply_to_screen_name=status.in_reply_to_screen_name, retweet_count=status.retweet_count,
                       source=status.source, quoted_status_id=status_id)
@@ -752,10 +744,10 @@ class TweetsStreamListener(tweepy.StreamListener):
                 tweet.save()
                 retry = False
             except OperationalError:
-                self.logger.debug("Operationalerror in save tweet: retry times = {}".format(retry_times))
+                print("Operationalerror in save tweet: retry times = {}".format(retry_times))
                 retry_times += 1
                 if retry_times > 10:
-                    self.logger.debug("To many times OperationalError, quitting save tweet")
+                    print("To many times OperationalError, quitting save tweet")
                     retry = False
             except UnicodeEncodeError:
                 retry = False

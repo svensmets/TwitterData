@@ -44,7 +44,7 @@ class Tweet:
     Represents a tweet in twitter
     """
     def __init__(self, tweet_id, tweeter_id, tweeter_name, tweet_text, tweet_date, is_retweet, mentions, hashtags,
-                 hyperlinks, task_id, favorite_count, id_str, in_reply_to_screen_name, retweet_count, source, coordinates,
+                 hyperlinks, favorite_count, id_str, in_reply_to_screen_name, retweet_count, source, coordinates,
                  quoted_status_id):
         self.tweet_id = tweet_id
         self.tweeter_id = tweeter_id
@@ -55,7 +55,6 @@ class Tweet:
         self.mentions = mentions
         self.hashtags = hashtags
         self.hyperlinks = hyperlinks
-        self.task_id = task_id
         self.favorite_count = favorite_count
         self.id_str = id_str
         self.in_reply_to_screen_name = in_reply_to_screen_name
