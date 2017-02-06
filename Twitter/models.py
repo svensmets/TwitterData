@@ -4,8 +4,7 @@ class TwitterUser:
     Represents a User of Twitter, not a user of the program
     """
     def __init__(self, user_id, name, screen_name, user_description, date_created, url,profile_image_url, language,
-                 location, default_profile_image, verified, friends_count, followers_count, is_protected, max_followers_exceeded,
-                 ):
+                 location, default_profile_image, verified, friends_count, followers_count, is_protected, max_followers_exceeded):
 
         self.user_id = user_id
         self.name = name
@@ -66,22 +65,25 @@ class Tweet:
         self.quoted_status_id = quoted_status_id
 
 
-class TwitterKeys(models.Model):
+class TwitterKeys:
     """
     The keys the user enters into the application to start a search
     """
-    consumer_key = models.CharField(max_length=200)
-    consumer_secret = models.CharField(max_length=200)
-    access_token = models.CharField(max_length=200)
-    access_token_secret = models.CharField(max_length=200)
-    user = models.ForeignKey(User)
+    def __init__(self, consumer_key, consumer_secret, access_token, access_token_secret, user):
+
+        self.consumer_key = consumer_key
+        self.consumer_secret = consumer_secret
+        self.access_token = access_token
+        self.access_token_secret = access_token_secret
+        self.user = user
 
 
-class TwitterRelationship(models.Model):
+class TwitterRelationship:
     """
     Relationship between two Twitter Users
     """
-    from_user_id = models.BigIntegerField()
-    to_user_id = models.BigIntegerField()
-    relation_used = models.CharField(max_length=100)
-    task_id = models.CharField(max_length=250)
+    def __init__(self, from_user_id, to_user_id, relation_used):
+
+        from_user_id = from_user_id
+        to_user_id = to_user_id
+        relation_used = relation_used
