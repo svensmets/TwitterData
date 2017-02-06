@@ -27,40 +27,43 @@ class TwitterUser:
         # date_added = models.DateTimeField(auto_now=True)
 
 
-class TwitterList(models.Model):
+class TwitterList:
     """
     Represents a list in twitter
     A twitter_user can be a member of a list or a subscriber
     """
-    list_id = models.BigIntegerField(primary_key=True)
-    list_name = models.CharField(max_length=200)
-    list_full_name = models.CharField(max_length=200)
-    user_membership = models.ManyToManyField(TwitterUser, related_name="list_membership", blank=True)
-    user_subscription = models.ManyToManyField(TwitterUser, related_name="list_subscription", blank=True)
-    task_id = models.CharField(max_length=250)
+    def __init__(self, list_id, list_name, list_full_name, user_membership, user_subscription):
+        self.list_id = list_id
+        self.list_name = list_name
+        self.list_full_name = list_full_name
+        self.user_membership = user_membership
+        self.user_subscription = user_subscription
 
 
-class Tweet(models.Model):
+class Tweet:
     """
     Represents a tweet in twitter
     """
-    tweet_id = models.BigIntegerField(primary_key=True)
-    tweeter_id = models.BigIntegerField()
-    tweeter_name = models.CharField(max_length=200)
-    tweet_text = models.CharField(max_length=200)
-    tweet_date = models.DateTimeField()
-    is_retweet = models.BooleanField()
-    mentions = models.CharField(max_length=200, blank=True)
-    hashtags = models.CharField(max_length=200, blank=True)
-    hyperlinks = models.CharField(max_length=200, blank=True)
-    task_id = models.CharField(max_length=250)
-    favorite_count = models.IntegerField(null=True)
-    id_str = models.CharField(max_length=100, null=True)
-    in_reply_to_screen_name = models.CharField(max_length=250, null=True)
-    retweet_count = models.IntegerField(null=True)
-    source = models.CharField(max_length=250, null=True)
-    coordinates = models.CharField(max_length=100, null=True)
-    quoted_status_id = models.CharField(max_length=100, null=True)
+    def __init__(self, tweet_id, tweeter_id, tweeter_name, tweet_text, tweet_date, is_retweet, mentions, hashtags,
+                 hyperlinks, task_id, favorite_count, id_str, in_reply_to_screen_name, retweet_count, source, coordinates,
+                 quoted_status_id):
+        self.tweet_id = tweet_id
+        self.tweeter_id = tweeter_id
+        self.tweeter_name = tweeter_name
+        self.tweet_text = tweet_text
+        self.tweet_date = tweet_date
+        self.is_retweet = is_retweet
+        self.mentions = mentions
+        self.hashtags = hashtags
+        self.hyperlinks = hyperlinks
+        self.task_id = task_id
+        self.favorite_count = favorite_count
+        self.id_str = id_str
+        self.in_reply_to_screen_name = in_reply_to_screen_name
+        self.retweet_count = retweet_count
+        self.source = source
+        self.coordinates = coordinates
+        self.quoted_status_id = quoted_status_id
 
 
 class TwitterKeys(models.Model):
