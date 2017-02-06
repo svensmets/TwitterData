@@ -1,8 +1,7 @@
 import logging
+import tweepy
 from twitter.models import TwitterUser, TwitterList, TwitterRelationship
 from twitter.models import Tweet
-from django.db import connection
-from django.db.utils import OperationalError
 
 
 class TwitterTweepy:
