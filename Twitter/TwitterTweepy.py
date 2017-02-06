@@ -1,7 +1,7 @@
 import logging
 import tweepy
-from twitter.models import TwitterUser, TwitterList, TwitterRelationship
-from twitter.models import Tweet
+from models import TwitterUser, TwitterList, TwitterRelationship
+from models import Tweet
 
 
 class TwitterTweepy:
