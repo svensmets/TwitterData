@@ -173,7 +173,7 @@ class TwitterTweepy:
                                 for friend_id in ids_no_doubles:
                                     relation = TwitterRelationship(from_user_id=ego_user.user_id, to_user_id=friend_id,
                                                                    relation_used="followers")
-                                    relation.save()
+                                    #relation.save()
                         except tweepy.TweepError as e:
                             print("Error in get followers: {0}".format(e))
                             # reset connection when api cannot connect
@@ -198,7 +198,7 @@ class TwitterTweepy:
                                 for twitter_list in twitter_lists:
                                     twitterlist = TwitterList(list_id=twitter_list.id, list_name=twitter_list.name,
                                                             list_full_name=twitter_list.full_name)
-                                    twitterlist.save()
+                                    #twitterlist.save()
                                     twitterlist.user_membership.add(ego_user)
                         except tweepy.TweepError as e:
                             print("Error in list memberships: {}".format(e))
@@ -223,7 +223,7 @@ class TwitterTweepy:
                                 for twitter_list in twitter_lists:
                                     twitterlist = TwitterList(list_id=twitter_list.id, list_name=twitter_list.name,
                                                               list_full_name=twitter_list.full_name)
-                                    twitterlist.save()
+                                    #twitterlist.save()
                                     twitterlist.user_subscription.add(ego_user)
                         except tweepy.TweepError as e:
                             # reset connection when api cannot connect
@@ -442,7 +442,8 @@ class TwitterTweepy:
                         break
                     for tweet in new_tweets:
                         try:
-                            self._save_tweet(status=tweet)
+                            print(tweet)
+                            #self._save_tweet(status=tweet)
                         except:
                             print("Exception in save tweet")
                             continue
@@ -481,7 +482,8 @@ class TwitterTweepy:
                                                 include_entities=True).pages():
                         for status in statuses:
                             try:
-                                self._save_tweet(status=status)
+                                print(status)
+                                #self._save_tweet(status=status)
                             except:
                                 print("Error in save tweet names searchapi")
                                 pass
@@ -507,7 +509,8 @@ class TwitterTweepy:
                     for statuses in tweepy.Cursor(self.api.user_timeline, screen_name=name).pages():
                         for status in statuses:
                             try:
-                                self._save_tweet(status=status)
+                                print(status)
+                                #self._save_tweet(status=status)
                             except:
                                 pass
                             time.sleep(0.3)
@@ -528,7 +531,8 @@ class TwitterTweepy:
             try:
                 for statuses in tweepy.Cursor(self.api.search, q=query, lang='nl').pages():
                     for status in statuses:
-                        self._save_tweet(status=status)
+                        print(status)
+                        #self._save_tweet(status=status)
             except tweepy.TweepError as e:
                 print("Error in random tweets: {}".format(e))
                 self.authenticate()
@@ -567,7 +571,7 @@ class TwitterTweepy:
                                        url=user.url, profile_image_url=user.profile_image_url, language=user.lang,
                                        location=user.location, default_profile_image=user.default_profile_image,
                                        verified=user.verified)
-            twitter_user.save()
+            #twitter_user.save()
             user_list.append(twitter_user)
 
     def _paginate(self, iterable, page_size):
