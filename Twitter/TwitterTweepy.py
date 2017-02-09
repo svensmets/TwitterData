@@ -289,20 +289,22 @@ class TwitterTweepy:
                         list_no_duplicates = list(set_ids)
                         for user_id in list_no_duplicates:
                             if user_id in list_total_users_ids and user_id != user.user_id:
-                                try:
-                                    relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
+                                relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
                                                                    relation_used="friends")
-                                    relation.save()
-                                except OperationalError as e:
-                                    # if MySql closes the connection: reopen connection and retry one time
-                                    print("Operationalerror: {}".format(e))
-                                    connection.close()
-                                    try:
-                                        relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
-                                                                       relation_used="followers")
-                                        relation.save()
-                                    except OperationalError as e:
-                                        print("Two times operationalerror, stop retry");
+                                # try:
+                                #     relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
+                                #                                    relation_used="friends")
+                                #     relation.save()
+                                # except OperationalError as e:
+                                #     # if MySql closes the connection: reopen connection and retry one time
+                                #     print("Operationalerror: {}".format(e))
+                                #     connection.close()
+                                #     try:
+                                #         relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
+                                #                                        relation_used="followers")
+                                #         relation.save()
+                                #     except OperationalError as e:
+                                #         print("Two times operationalerror, stop retry");
                     else:
                         print("User is protected")
                 print("end of relationships friends")
@@ -347,20 +349,22 @@ class TwitterTweepy:
                         list_no_duplicates = list(set_ids)
                         for user_id in list_no_duplicates:
                             if user_id in list_total_users_ids and user_id != user.user_id:
-                                try:
-                                    relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
-                                                                   relation_used="followers")
-                                    relation.save()
-                                except OperationalError as e:
-                                    # if MySql closes the connection: retry one time
-                                    print("Operationalerror: {}".format(e))
-                                    connection.close()
-                                    try:
-                                        relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
-                                                                       relation_used="followers")
-                                        relation.save()
-                                    except OperationalError as e:
-                                        print("Two times operationalerror, stop retry");
+                                relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
+                                                               relation_used="followers")
+                                # try:
+                                #     relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
+                                #                                    relation_used="followers")
+                                #     relation.save()
+                                # except OperationalError as e:
+                                #     # if MySql closes the connection: retry one time
+                                #     print("Operationalerror: {}".format(e))
+                                #     connection.close()
+                                #     try:
+                                #         relation = TwitterRelationship(from_user_id=user.user_id, to_user_id=user_id,
+                                #                                        relation_used="followers")
+                                #         relation.save()
+                                #     except OperationalError as e:
+                                #         print("Two times operationalerror, stop retry");
                     else:
                         print("User is protected")
                 print("end of relationships followers")
@@ -641,22 +645,22 @@ class TwitterTweepy:
                       in_reply_to_screen_name=status.in_reply_to_screen_name, retweet_count=status.retweet_count,
                       source=status.source, quoted_status_id=status_id)
         # retry if an operationalerror is thrown (deadlock)
-        retry = True
-        retry_times = 0
-        while retry:
-            try:
-                tweet.save()
-                retry = False
-            except OperationalError as e:
-                print("Operationalerror in save tweet {0}: retry times = {1}".format(e, retry_times))
-                retry_times += 1
-                if retry_times > 10:
-                    print("Too many times OperationalError, quitting save tweet")
-                    retry = False
-            except UnicodeEncodeError as e:
-                print("Unicode error in save tweet: {0}".format(e))
-                retry = False
-        del tweet
+        # retry = True
+        # retry_times = 0
+        # while retry:
+        #     try:
+        #         tweet.save()
+        #         retry = False
+        #     except OperationalError as e:
+        #         print("Operationalerror in save tweet {0}: retry times = {1}".format(e, retry_times))
+        #         retry_times += 1
+        #         if retry_times > 10:
+        #             print("Too many times OperationalError, quitting save tweet")
+        #             retry = False
+        #     except UnicodeEncodeError as e:
+        #         print("Unicode error in save tweet: {0}".format(e))
+        #         retry = False
+        # del tweet
 
 
 
@@ -671,7 +675,6 @@ class TweetsStreamListener(tweepy.StreamListener):
 
     def __init__(self, api):
         self.api = api
-        self.logger = logging.getLogger('twitter')
         super(tweepy.StreamListener, self).__init__()
 
         # setup of rabbitMQ connection
@@ -737,17 +740,17 @@ class TweetsStreamListener(tweepy.StreamListener):
                       in_reply_to_screen_name=status.in_reply_to_screen_name, retweet_count=status.retweet_count,
                       source=status.source, quoted_status_id=status_id)
         # retry if an operationalerror is thrown (deadlock)
-        retry = True
-        retry_times = 0
-        while retry:
-            try:
-                tweet.save()
-                retry = False
-            except OperationalError:
-                print("Operationalerror in save tweet: retry times = {}".format(retry_times))
-                retry_times += 1
-                if retry_times > 10:
-                    print("To many times OperationalError, quitting save tweet")
-                    retry = False
-            except UnicodeEncodeError:
-                retry = False
+        # retry = True
+        # retry_times = 0
+        # while retry:
+        #     try:
+        #         tweet.save()
+        #         retry = False
+        #     except OperationalError:
+        #         print("Operationalerror in save tweet: retry times = {}".format(retry_times))
+        #         retry_times += 1
+        #         if retry_times > 10:
+        #             print("To many times OperationalError, quitting save tweet")
+        #             retry = False
+        #     except UnicodeEncodeError:
+        #         retry = False
